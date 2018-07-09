@@ -1,0 +1,276 @@
+<html>
+	<head>
+		<meta charset="UTF-8"></meta>
+		<title>jasearch</title>
+        <link rel="stylesheet" type="text/css" href="jasearch.css">
+		<script src="jquery.min.js"></script>
+		<script>
+		var offset;
+		var limit;
+        
+        var audios=[];
+			function validateForm() {
+				var include="";
+    				if(document.forms["myForm"]["include1"].checked){
+					var include="musicinfo";
+				}
+				if(document.forms["myForm"]["include2"].checked){
+					if(include!=""){
+						include=include+"+";
+					}
+					include=include+"stats";
+				}
+				if(document.forms["myForm"]["include3"].checked){
+					if(include!=""){
+						include=include+"+";
+					}
+					include=include+"lyrics";
+				}
+				if(document.forms["myForm"]["include4"].checked){
+					if(include!=""){
+						include=include+"+";
+					}
+					include=include+"license";
+				}
+				document.forms["myForm"]["include"].value=include;
+			}
+			function clearAndSubmit(){
+
+				clearResults();
+				submit();
+			}
+			function submit() {
+				validateForm();
+				offset=parseInt($("#offset").val());
+				limit=parseInt($("#limit").val());
+
+				$.getJSON(generateURL(),function(data){
+                    audios=[];
+					var x;
+					//console.log(data);
+					for(x2 in data.results){
+						x=data.results[x2];
+						var element = $("<p></p>");
+						element.addClass("element");
+
+						var artist = $("<div></div>");
+						artist.addClass("artist");
+						artist.text(x.artist_name);
+						element.append("artist: "+x.artist_name);
+
+						var name = $("<div></div>");
+						name.addClass("name");
+						name.text("name: "+x.name);
+						element.append(name);
+
+
+						if(document.forms["myForm"]["include2"].checked){
+
+							var stats=$("<div></div>");
+							stats.addClass("stats");
+
+						var listensTotal=$("<div></div>");
+						listensTotal.addClass("listensTotal");
+						listensTotal.text("times listened: "+x.stats.rate_listened_total);
+						stats.append(listensTotal);
+						element.append(stats);
+
+						}
+
+
+						if(document.forms["myForm"]["include1"].checked){
+
+							var musicinfo=$("<div></div>");
+							musicinfo.addClass("musicinfo");
+							musicinfo.text("tags");
+							
+							var tags=$("<ul></ul>");
+							tags.addClass("tags");
+							
+							
+							
+							for(y2 in x.musicinfo.tags){
+								y=x.musicinfo.tags[y2];
+								for(z2 in y){
+									z=y[z2];
+									var li=$("<li></li>");
+									li.text(z);
+									tags.append(li);
+								}
+							}
+							
+							musicinfo.append(tags);
+							element.append(musicinfo);
+
+						}
+						var date=$("<div></div>");
+						date.text("date "+x.releasedate);
+						date.addClass("date");
+						element.append(date);
+						
+						if(document.forms["myForm"]["include3"].checked){
+
+							var lyrics =$("<div></div>");
+							lyrics.addClass("lyrics");
+							lyrics.html("lyrics: "+(x.lyrics).replace(/(\n)+/g, '<br />'));
+							//console.log(lyrics.html());
+							element.append(lyrics);
+						}
+
+						var link=$("<a target=\"_blank\"></a>");
+						link.text("link: "+x.shareurl);
+						link.attr("href",x.shareurl);
+						element.append(link);
+						//$("#results").append(element);
+                   element.append($("<br>"));
+                    
+                   var link3=$("<a target=\"_blank\"></a>");
+						link3.text("stream: "+ x.audio);
+						link3.attr("href",x.audio);
+						element.append(link3);
+						//$("#results").append(element);
+
+                   element.append($("<br>"));
+
+                    var link2=$("<a></a>");
+						link2.text("download: "+x.audiodownload);
+						link2.attr("download",x.audiodownload);
+                    link2.attr("href",x.audiodownload);
+						element.append(link2);
+                   element.append($("<br>"));
+
+						$("#results").append(element);
+                   
+                    var audio=$("<audio controls preload=\"none\"></audio>");
+                    audio.attr("src",x.audio);
+                    audio.track=x.name;
+                    audio.artist=x.artist_name;
+
+                    //element.append(audio);
+                    audios.push(audio);
+                    audio.attr("index",x2);
+                    var button = $("<button>&#x25b6;</button>");
+                    button.attr("index",x2);
+                    button.click(x2,play);
+                    element.append(button);
+					}
+				});
+			}
+			function generateURL() {
+				var url="https://api.jamendo.com/v3.0/tracks?type=single albumtrack&";
+				var x2;
+				for(x2 in $("form").serializeArray()){
+					x=$("form").serializeArray()[x2];
+					url=url+x.name+'='+x.value+'&';
+				}
+				url=url.substring(0,url.length-1);
+				//console.log(url);
+				return url;
+
+			}
+
+			function clearResults(){
+				$('#results').empty();
+                $("#player").empty();
+				$('#offset').val(0);
+			}
+
+			function next(){
+				$("#offset").val(offset+limit);
+				submit();
+			}
+			function prev(){
+				$("#offset").val(offset-limit);
+				submit();
+			}
+            function play(event){
+                var index=event.data;
+                $("#player").empty();
+                $("#player").append(audios[index]);
+                $("#player").append("<div class=\"info\">Now Playing: "+audios[index].artist+" - "+audios[index].track+"</div>");
+                audios[index].trigger("play");
+                
+            }
+		</script>
+	</head>
+	<body>
+		<form id="form" name="myForm" method="get" action="javascript:clearAndSubmit()" accept-charset="utf-8">
+			<p>artist</p>
+			<input type="text" name="artist_name">
+			<p>album</p>
+			<input type="text" name="album_name">
+			<p>exact name</p>
+			<input type="text" name="name">
+			<p>limit</p>
+			<input type="number" id="limit" name="limit" min="1" max="200" value="10">
+			<input type="hidden" id="offset" name="offset" value="0">
+			<p>required tags (separated by +)</p>
+			<input type="text" name="tags">
+			<p>fuzzytags(only one required)(separated by +)</p>
+			<input type="text" name="fuzzytags">
+			<p>date between(yyyy-mm-dd_yyyy-mm-dd)</p>
+			<input type="text" name="datebetween">
+			<p>duration between(seconds_seconds)</p>
+			<input type="text" name="durationbetween">
+			<p>order</p>
+			<select name="order">
+			<option value="relevance">relevance</option>
+			<option value="buzzrate">buzzrate</option>
+			<option value="downloads_week">downloads this week</option>
+			<option value="downloads_month">downloads this month</option>
+			<option value="downloads_total">downloads in total</option>
+			<option value="listens_week">listens this week</option>
+			<option value="listens_month">listens this month</option>
+			<option value="listens_total">listens in total</option>
+			<option value="popularity_week">popularity this week</option>
+			<option value="popularity_month">popularity this month</option>
+			<option value="popularity_total">popularity in total</option>
+			<option value="name">name</option>
+			<option value="album_name">album name</option>
+			<option value="artist_name">artist name</option>
+			<option value="releasedate_asc">releasedate_asc</option>
+			<option value="releasedate_desc">releasedate_desc</option>
+			<option value="duration">duration</option>
+			</select>
+			<p>boost</p>
+			<select>
+			<option value="">none</option>
+			<option value="buzzrate">buzzrate</option>
+			<option value="downloads_week">downloads this week</option>
+			<option value="downloads_month">downloads this month</option>
+			<option value="downloads_total">downloads in total</option>
+			<option value="listens_week">listens this week</option>
+			<option value="listens_month">listens this month</option>
+			<option value="listens_total">listens in total</option>
+			<option value="popularity_week">popularity this week</option>
+			<option value="popularity_month">popularity this month</option>
+			<option value="popularity_total">popularity in total</option>
+			</select>
+			<p>vocal/instrumental</p>
+			<input type="radio" name="vocalinstrumental" value="" checked>does not matter.</input>
+			<input type="radio" name="vocalinstrumental" value="vocal">vocal</input>
+			<input type="radio" name="vocalinstrumental" value="instrumental">instrumental</input>
+			<p>gender</p>
+			<input type="radio" name="gender" value="" checked>does not matter.</input>
+			<input type="radio" name="gender" value="male">male</input>
+			<input type="radio" name="gender" value="female">female</input>
+			<p>acoustic/electric</p>
+			<input type="radio" name="acousticelectric" value="" checked>does not matter.</input>
+			<input type="radio" name="acousticelectric" value="acoustic">acoustic</input>
+			<input type="radio" name="acousticelectric" value="electric">electric</input>
+			<input type="hidden" name="client_id" value="f5a08dcd">
+			<input type="hidden" name="format" value="jsonpretty">
+			<input type="hidden" name="include">
+			<p>also include:</p>
+			<input type="checkbox" name="include1">musicinfo</input>
+			<input type="checkbox" name="include2">stats</input>
+			<input type="checkbox" name="include3">lyrics</input>
+			<input type="checkbox" name="include4">license</input>
+			<br>
+			<input type="submit" value="submit">
+			</form>
+		<section id="results"></section>
+		<button onclick="javascript:next()">next</button>
+        <section id="player" class="player"></section>
+	</body>
+</html>

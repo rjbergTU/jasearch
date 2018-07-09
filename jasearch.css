@@ -1,0 +1,9 @@
+.player {
+    position: fixed; 
+    bottom: 0;
+    height: 64;
+}
+.info {
+    background-color:rgba(150,150,255,1.0);
+    font-weight: bold;
+}
